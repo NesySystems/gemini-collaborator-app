@@ -6,6 +6,7 @@ import { TaskList } from './components/tasks/TaskList';
 import { TaskForm } from './components/tasks/TaskForm';
 import { MemoryList } from './components/memory/MemoryList';
 import { MemoryForm } from './components/memory/MemoryForm';
+import { DashboardCharts } from './components/visualizations/DashboardCharts';
 
 function App() {
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -52,7 +53,9 @@ function App() {
                 </nav>
               </div>
 
-              <div className="bg-white rounded-lg shadow-lg p-6">
+              <DashboardCharts />
+
+              <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
                 {activeTab === 'tasks' ? (
                   <TaskList />
                 ) : (
