@@ -1,80 +1,79 @@
-import React, { useState } from 'react';
-import { LiveAPIProvider } from './contexts/LiveAPIContext';
-import { TaskProvider } from './contexts/TaskContext';
-import { MemoryProvider } from './contexts/MemoryContext';
+// src/App.tsx
+import React, { useState, useEffect } from 'react';
+import { GeminiProvider } from './contexts/GeminiContext';
 import { TaskList } from './components/tasks/TaskList';
-import { TaskForm } from './components/tasks/TaskForm';
-import { MemoryList } from './components/memory/MemoryList';
-import { MemoryForm } from './components/memory/MemoryForm';
-import { DashboardCharts } from './components/visualizations/DashboardCharts';
+import { MemoryLogger } from './components/memory/MemoryLogger';
+import { MemoryTimeline } from './components/memory/MemoryTimeline';
+import type { Task, MemoryLog } from './types';
+import { wsClient } from './utils/websocket';
 
-function App() {
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'memory'>('tasks');
+export default function App() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [memories, setMemories] = useState<MemoryLog[]>([]);
+
+  useEffect(() => {
+    wsClient.connect();
+
+    wsClient.onMessage((data) => {
+      if (data.type === 'tasks') {
+        setTasks(data.payload);
+      } else if (data.type === 'memories') {
+        setMemories(data.payload);
+      }
+    });
+
+    return () => wsClient.disconnect();
+  }, []);
+
+  const handleTaskSelect = (task: Task) => {
+    wsClient.sendMessage({
+      type: 'task_selected',
+      payload: task.id
+    });
+  };
+
+  const handleLogMemory = (log: Omit<MemoryLog, 'id' | 'timestamp'>) => {
+    const newMemory = {
+      ...log,
+      id: crypto.randomUUID(),
+      timestamp: new Date()
+    };
+    
+    wsClient.sendMessage({
+      type: 'memory_created',
+      payload: newMemory
+    });
+    
+    setMemories(prev => [...prev, newMemory]);
+  };
 
   return (
-    <LiveAPIProvider>
-      <TaskProvider>
-        <MemoryProvider>
-          <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Gemini Collaborator</h1>
-                {activeTab === 'tasks' && (
-                  <button
-                    onClick={() => setShowTaskForm(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Add Task
-                  </button>
-                )}
+    <GeminiProvider>
+      <div className="min-h-screen bg-gray-100">
+        <header className="bg-white shadow">
+          <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Gemini Collaborator
+            </h1>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <h2 className="text-2xl font-semibold mb-4">Tasks</h2>
+              <TaskList tasks={tasks} onTaskSelect={handleTaskSelect} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold mb-4">Memory Log</h2>
+              <MemoryLogger onLogMemory={handleLogMemory} />
+              <div className="mt-8">
+                <MemoryTimeline memories={memories} />
               </div>
-
-              <div className="mb-6">
-                <nav className="flex space-x-4">
-                  <button
-                    onClick={() => setActiveTab('tasks')}
-                    className={`px-4 py-2 rounded-md ${activeTab === 'tasks'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    Tasks
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('memory')}
-                    className={`px-4 py-2 rounded-md ${activeTab === 'memory'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    Memory Log
-                  </button>
-                </nav>
-              </div>
-
-              <DashboardCharts />
-
-              <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-                {activeTab === 'tasks' ? (
-                  <TaskList />
-                ) : (
-                  <div className="space-y-6">
-                    <MemoryForm />
-                    <MemoryList />
-                  </div>
-                )}
-              </div>
-
-              {showTaskForm && (
-                <TaskForm onClose={() => setShowTaskForm(false)} />
-              )}
             </div>
           </div>
-        </MemoryProvider>
-      </TaskProvider>
-    </LiveAPIProvider>
+        </main>
+      </div>
+    </GeminiProvider>
   );
 }
-
-export default App;
