@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { API_CONFIG } from '../config/api';
 
 type LiveAPIContextType = {
-  client: GenerativeModel | null;
+  client: any;
   setConfig: (config: any) => void;
   isConnected: boolean;
 };
@@ -14,16 +15,21 @@ const LiveAPIContext = createContext<LiveAPIContextType>({
 });
 
 export const LiveAPIProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
-  const [client, setClient] = useState<GenerativeModel | null>(null);
+  const [client, setClient] = useState<any>(null);
   const [config, setConfig] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     if (config) {
-      const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY || '');
-      const model = genAI.getGenerativeModel(config);
-      setClient(model);
-      setIsConnected(true);
+      try {
+        const genAI = new GoogleGenerativeAI(API_CONFIG.googleApiKey);
+        const model = genAI.getGenerativeModel(config);
+        setClient(model);
+        setIsConnected(true);
+      } catch (error) {
+        console.error('Failed to initialize Google API:', error);
+        setIsConnected(false);
+      }
     }
   }, [config]);
 
